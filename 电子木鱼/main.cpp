@@ -6,6 +6,8 @@
 /*
 * 1.0.0.1 初号版本
 * 1.0.0.2 优化木鱼的缩放逻辑
+* 1.0.0.3 提高音轨的数量到6
+* 1.0.0.4 添加自动模式 提取loop中的key与knock
 */
 
 #ifdef _DEBUG
@@ -26,14 +28,27 @@ sf::RenderWindow window;
 sf::Event event;
 sf::View view;
 
+sf::Clock sfClock;
+constexpr char SPF = 1000 / 60; //62.5FPS
+
 sf::SoundBuffer sound_Buffer;
-constexpr char sound_Number = 4; //虽说两个足矣，但是为了不浪费这个char我要浪费更多的Sound
+constexpr char sound_Number = 6;
 sf::Sound sound[sound_Number];
 char now_Sound_Number;
 
 sf::Texture texture;
 sf::Sprite fish;
 float fish_Scale = 1;
+
+sf::Time auto_Knock_Time = sf::milliseconds(1000);
+sf::Time next_Knock_Time = -auto_Knock_Time;
+bool auto_Knock = false;
+
+bool fream_Knock = false;
+char fream_Active = 0;
+constexpr sf::Keyboard::Key fream_Keys[13] = { sf::Keyboard::Up,sf::Keyboard::Up,sf::Keyboard::Down,sf::Keyboard::Down,
+	sf::Keyboard::Left,sf::Keyboard::Right,sf::Keyboard::Left,sf::Keyboard::Right,
+	sf::Keyboard::B,sf::Keyboard::A,sf::Keyboard::B,sf::Keyboard::A,sf::Keyboard::Unknown };
 
 sf::Font font;
 constexpr char text_Buffer_Lenght = 30;
@@ -51,6 +66,9 @@ inline sf::Vector2<T> operator/(sf::Vector2<T> vec, int num);
 void initlize();
 void loop();
 void enedlize();
+
+void key(sf::Event::KeyEvent event_Key);
+void knock(sf::Vector2f position);
 
 int MAIN
 {
@@ -119,30 +137,31 @@ void loop()
 			window.setView(view);
 			break;
 		case sf::Event::KeyPressed:
-			if (event.key.code == sf::Keyboard::Escape)
-			{
-				//若是ESC则退出
-				window.close();
-				break;
-			}
-			//否则功德+1
+			key(event.key);
+			break;
 		case sf::Event::MouseButtonPressed:
-			merits++;
-			fish.setScale(0.95f * fish_Scale, 0.95f * fish_Scale);
-			now_Sound_Number++, now_Sound_Number %= sound_Number;
-			sound[now_Sound_Number].play();
-
-			now_Text_Number = (now_Text_Number + 1) % (text_Number - 1) + 1;
-			if (event.type == sf::Event::MouseButtonPressed) text[now_Text_Number].setPosition(window.mapPixelToCoords({ event.mouseButton.x, event.mouseButton.y }));
-			else text[now_Text_Number].setPosition(fish.getPosition().x + fish.getOrigin().x * fish_Scale * 0.7f, fish.getPosition().y + fish.getOrigin().y * fish_Scale * -0.5f);
-			text[now_Text_Number].setFillColor(sf::Color(0xFFFFFFFF));
-
-			swprintf_s(text_Buffer, text_Buffer_Lenght, L"当前功德:%llu", merits);
-			text[0].setString(sf::String(text_Buffer));
+			if (fream_Knock) fream_Knock = false, fream_Active = 0;
+			knock(window.mapPixelToCoords({ event.mouseButton.x, event.mouseButton.y }));
 			break;
 		default:
 			break;
 		}
+	}
+
+	//自动刷新
+	if (fream_Knock)
+	{
+		//功德+1
+		knock({ fish.getPosition().x + fish.getOrigin().x * fish_Scale * 0.7f,
+			   fish.getPosition().y + fish.getOrigin().y * fish_Scale * -0.5f });
+	}
+	else if (auto_Knock && sfClock.getElapsedTime() > next_Knock_Time)
+	{
+		next_Knock_Time = sfClock.getElapsedTime() + auto_Knock_Time;
+
+		//功德+1
+		knock({ fish.getPosition().x + fish.getOrigin().x * fish_Scale * 0.7f,
+			fish.getPosition().y + fish.getOrigin().y * fish_Scale * -0.5f });
 	}
 
 	//状态更新
@@ -164,7 +183,7 @@ void loop()
 	for (char i = 0; i < text_Number; i++) window.draw(text[i]);
 	window.display();
 
-	sf::sleep(sf::milliseconds(1000 / 60)); //62.5 FPS
+	sf::sleep(sf::milliseconds(SPF)); //常量睡眠，日后再说
 }
 
 void enedlize()
@@ -189,6 +208,49 @@ void enedlize()
 	}
 	file.close();
 	return;
+}
+
+void key(sf::Event::KeyEvent event_Key)
+{
+	switch (event_Key.code)
+	{
+	case sf::Keyboard::Escape:
+		//若是ESC则退出
+		window.close();
+		break;
+	case sf::Keyboard::A:
+		//A:自动
+		auto_Knock = !auto_Knock;
+		break;
+	default:
+		//功德+1
+		knock({ fish.getPosition().x + fish.getOrigin().x * fish_Scale * 0.7f,
+			fish.getPosition().y + fish.getOrigin().y * fish_Scale * -0.5f });
+		break;
+	}
+	if (fream_Knock == true) fream_Knock = false, fream_Active = 0;
+	else if (event.key.code == fream_Keys[fream_Active])
+	{
+		//判定fream_Knock
+		fream_Active++;
+		if (fream_Keys[fream_Active] == sf::Keyboard::Unknown) fream_Knock = true;
+	}
+	else fream_Active = event.key.code == fream_Keys[0] ? 1 : 0;
+}
+
+void knock(sf::Vector2f position)
+{
+	merits++;
+	fish.setScale(0.95f * fish_Scale, 0.95f * fish_Scale);
+	now_Sound_Number++, now_Sound_Number %= sound_Number;
+	sound[now_Sound_Number].play();
+
+	now_Text_Number = (now_Text_Number + 1) % (text_Number - 1) + 1;
+	text[now_Text_Number].setPosition(position);
+	text[now_Text_Number].setFillColor(sf::Color(0xFFFFFFFF));
+
+	swprintf_s(text_Buffer, text_Buffer_Lenght, L"当前功德:%llu", merits);
+	text[0].setString(sf::String(text_Buffer));
 }
 
 template<typename T>
