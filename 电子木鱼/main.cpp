@@ -8,6 +8,7 @@
 * 1.0.0.2 优化木鱼的缩放逻辑
 * 1.0.0.3 提高音轨的数量到6
 * 1.0.0.4 添加自动模式 提取loop中的key与knock
+* 1.0.0.5 添加触控支持 优化遍历逻辑，降低CPU占用 2023/2/11
 */
 
 #ifdef _DEBUG
@@ -143,6 +144,10 @@ void loop()
 			if (fream_Knock) fream_Knock = false, fream_Active = 0;
 			knock(window.mapPixelToCoords({ event.mouseButton.x, event.mouseButton.y }));
 			break;
+		case sf::Event::TouchBegan:
+			if (fream_Knock) fream_Knock = false, fream_Active = 0;
+			knock(window.mapPixelToCoords({ event.touch.x,event.touch.y }));
+			break;
 		default:
 			break;
 		}
@@ -180,7 +185,9 @@ void loop()
 	//渲染
 	window.clear(sf::Color(0x000000FF));
 	window.draw(fish);
-	for (char i = 0; i < text_Number; i++) window.draw(text[i]);
+	for (char i = 0; i < text_Number; i++)
+		if (text[i].getFillColor().a > 0)
+			window.draw(text[i]);
 	window.display();
 
 	sf::sleep(sf::milliseconds(SPF)); //常量睡眠，日后再说
