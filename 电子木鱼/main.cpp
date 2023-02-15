@@ -2,6 +2,7 @@
 #include <fstream>
 #include <SFML/Audio.hpp>
 #include <SFML/Graphics.hpp>
+//#include "windows.cpp"
 
 /*
 * 1.0.0.1 初号版本
@@ -9,6 +10,7 @@
 * 1.0.0.3 提高音轨的数量到6
 * 1.0.0.4 添加自动模式 提取loop中的key与knock
 * 1.0.0.5 添加触控支持 优化遍历逻辑，降低CPU占用 2023/2/11
+* 1.0.0.6 确认触控支持无效 修复加载字体失败后重新加载错误的bug
 */
 
 #ifdef _DEBUG
@@ -97,7 +99,7 @@ void initlize()
 	fish.setOrigin((sf::Vector2f)texture.getSize() / 2);
 	fish.setPosition(0, 0);
 
-	if (!font.loadFromFile("C:/windows/fonts/msyh.ttc")) font.loadFromFile("C:/windos/fonts/msyh.ttf");
+	if (!font.loadFromFile("C:/windows/fonts/msyh.ttc")) font.loadFromFile("C:/windows/fonts/msyh.ttf");
 	swprintf_s(text_Buffer, text_Buffer_Lenght, L"当前功德:%llu", merits);
 
 	for (char i = 1; i < text_Number; i++)
@@ -117,6 +119,8 @@ void initlize()
 	view.reset(sf::FloatRect(-(sf::Vector2f)window.getSize() / 2, (sf::Vector2f)window.getSize()));
 	window.setView(view);
 	text[0].setPosition(-(sf::Vector2f)window.getSize() / 2 + sf::Vector2f(20, 20));
+
+	//Register_Touch(window.getSystemHandle());
 }
 
 void loop()
